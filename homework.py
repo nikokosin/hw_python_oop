@@ -11,7 +11,7 @@ class InfoMessage:
     distance: float
     speed: float
     calories: float
-    message: str = ('Тип тренировки: {training_type}; '
+    MESSAGE: str = ('Тип тренировки: {training_type}; '
                     'Длительность: {duration:.3f} ч.; '
                     'Дистанция: {distance:.3f} км; '
                     'Ср. скорость: {speed:.3f} км/ч; '
@@ -19,7 +19,7 @@ class InfoMessage:
 
     def get_message(self) -> str:
         """Выводим информацию о тренировке."""
-        return self.message.format(**asdict(self))
+        return self.MESSAGE.format(**asdict(self))
 
 
 class Training:
@@ -48,11 +48,11 @@ class Training:
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
         raise NotImplementedError(
-            'Определите калории в %s.' % (self.__class__.__name__))
+            'Определите калории в %s.' % type(self).__name__)
 
     def show_training_info(self) -> InfoMessage:
         """Вернуть информационное сообщение о выполненной тренировке."""
-        return InfoMessage(self.__class__.__name__,
+        return InfoMessage(type(self).__name__,
                            duration=self.duration,
                            distance=self.get_distance(),
                            speed=self.get_mean_speed(),
@@ -75,8 +75,8 @@ class Running(Training):
 class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
     """Константы для нащей формулы расчета каллорий для Ходьбы"""
-    CON_CAL_1: float = 0.035
-    CON_CAL_2: float = 0.029
+    COEF_FOR_CAL_WALK_1: float = 0.035
+    COEF_FOR_CAL_WALK_2: float = 0.029
     KMH_IN_MSEC: float = 0.278
     HEIGHT_DIV: float = 100.0
     MEAN_SPEED_POW_VALUE: float = 2.0
@@ -94,17 +94,17 @@ class SportsWalking(Training):
         """Получить количество затраченных калорий."""
         mean_speed_ms = (self.get_mean_speed() * self.KMH_IN_MSEC)
         height_in_meters = self.height / self.HEIGHT_DIV
-        return (((self.CON_CAL_1 * self.weight)
+        return (((self.COEF_FOR_CAL_WALK_1 * self.weight)
                 + (mean_speed_ms ** self.MEAN_SPEED_POW_VALUE
-                / height_in_meters) * self.CON_CAL_2 * self.weight)
+                / height_in_meters) * self.COEF_FOR_CAL_WALK_2 * self.weight)
                 * self.duration * self.MINUTES_IN_HOUR)
 
 
 class Swimming(Training):
     """Тренировка: плавание."""
     """Константы для формулы"""
-    CON_CAL_1: float = 1.1
-    CON_CAL_2: float = 2.0
+    COEF_FOR_CAL_SWIM_1: float = 1.1
+    COEF_FOR_CAL_SWIM_2: float = 2.0
     LEN_STEP: float = 1.38
 
     def __init__(self,
@@ -125,24 +125,34 @@ class Swimming(Training):
 
     def get_spent_calories(self) -> float:
         """Получаем количество затраченных калорий во время плавания."""
-        return ((self.get_mean_speed() + self.CON_CAL_1)
-                * self.CON_CAL_2 * self.weight * self.duration)
+        return ((self.get_mean_speed() + self.COEF_FOR_CAL_SWIM_1)
+                * self.COEF_FOR_CAL_SWIM_2 * self.weight * self.duration)
 
 
 def read_package(workout_type: str, data: list[int]) -> Training:
     """Прочитать данные полученные от датчиков."""
-
-    """Прочитать данные полученные от датчиков."""
-
     training_type: dict[str, type[Training]] = {
         'SWM': Swimming,
         'RUN': Running,
         'WLK': SportsWalking
     }
+
+    data_len = {
+        'SWM': 5,
+        'RUN': 3,
+        'WLK': 4
+    }
+
     try:
+        if len(data) != data_len[workout_type]:
+            raise ValueError(f'Неправильное количество'
+                             f'элементов для {workout_type}')
+        if not all(isinstance(x, (float, int)) for x in data):
+            raise ValueError('В массиве присутствуют значения,'
+                             ' отличные от целых чисел')
         return training_type[workout_type](*data)
     except KeyError:
-        raise ValueError("Неизвестная тренировка")
+        raise ValueError('Неизвестная тренировка')
 
 
 def main(training: Training) -> None:
